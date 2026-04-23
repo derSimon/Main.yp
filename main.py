@@ -21,7 +21,7 @@ class VideoRequest(BaseModel):
     url: str
 
 def is_valid_youtube_url(url: str) -> bool:
-    pattern = r"(https?://)?(www\.)?(youtube\.com/watch\?v=|youtu\.be/)[\w-]+"
+    pattern = r"(https?://)?(www\.)?(youtube\.com|youtu\.be)"
     return bool(re.match(pattern, url))
 
 async def process_video(job_id: str, url: str):
