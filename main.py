@@ -21,7 +21,7 @@ class VideoRequest(BaseModel):
     url: str
 
 def is_valid_youtube_url(url: str) -> bool:
-    pattern = r"(https?://)?(www\.)?(youtube\.com|youtu\.be)"
+    pattern = r"(https?://)?(www\.)?(youtube\.com|youtu\.be)(/|$)"
     return bool(re.match(pattern, url))
 
 async def process_video(job_id: str, url: str):
@@ -121,7 +121,7 @@ HTML = """<!DOCTYPE html>
     const errorMsg=document.getElementById('errorMsg');
     const btn=document.getElementById('startBtn');
     errorMsg.style.display='none';
-    if(!url||!url.includes('youtube')){errorMsg.style.display='block';return;}
+    if(!url||(!url.includes('youtube')&&!url.includes('youtu.be'))){errorMsg.style.display='block';return;}
     btn.disabled=true;btn.textContent='Startet...';
     try{
       const res=await fetch('/process',{method:'POST',headers:{'Content-Type':'application/json'},body:JSON.stringify({url})});
