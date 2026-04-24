@@ -150,7 +150,7 @@ async def cut_clips(video_path: str, moments: list, output_dir: str) -> list:
             "-ss", str(start),
             "-i", video_path,
             "-t", str(duration),
-            "-vf", "scale=1080:1920:force_original_aspect_ratio=decrease,pad=1080:1920:(ow-iw)/2:(oh-ih)/2:black",
+            "-vf", "scale='if(gt(iw/ih,9/16),1080,trunc(oh*a/2)*2)':'if(gt(iw/ih,9/16),trunc(ow/a/2)*2,1920)',crop=1080:1920:(iw-1080)/2:(ih-1920)/2",
             "-c:v", "libx264",
             "-c:a", "aac",
             "-preset", "fast",
