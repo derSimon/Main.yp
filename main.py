@@ -6,6 +6,7 @@ import re
 import uuid
 import asyncio
 import os
+import glob
 import json
 import tempfile
 
@@ -47,43 +48,52 @@ def is_valid_youtube_url(url: str) -> bool:
 # SCHRITT 1a: Audio herunterladen
 # ─────────────────────────────────────────────
 async def download_audio(url: str, output_dir: str) -> str:
-    audio_path = os.path.join(output_dir, "audio.mp3")
     cmd = [
         "yt-dlp", "-x",
         "--audio-format", "mp3",
         "--audio-quality", "0",
-        "-o", audio_path, url
+        "-o", "%(title)s.%(ext)s",
+        url
     ]
     proc = await asyncio.create_subprocess_exec(
         *cmd,
         stdout=asyncio.subprocess.PIPE,
-        stderr=asyncio.subprocess.PIPE
+        stderr=asyncio.subprocess.PIPE,
+        cwd=output_dir
     )
-    await proc.communicate()
-    if not os.path.exists(audio_path):
-        raise Exception("Audio-Download fehlgeschlagen")
-    return audio_path
+    stdout, stderr = await proc.communicate()
+    matches = glob.glob(os.path.join(output_dir, "*.mp3"))
+    if not matches:
+        raise Exception(
+            f"Audio-Download fehlgeschlagen: {stderr.decode(errors='replace').strip()}"
+        )
+    return matches[0]
 
 
 # ─────────────────────────────────────────────
 # SCHRITT 1b: Video herunterladen
 # ─────────────────────────────────────────────
 async def download_video(url: str, output_dir: str) -> str:
-    video_path = os.path.join(output_dir, "video.mp4")
     cmd = [
         "yt-dlp",
         "-f", "bestvideo[ext=mp4]+bestaudio[ext=m4a]/mp4",
-        "-o", video_path, url
+        "--merge-output-format", "mp4",
+        "-o", "%(title)s.%(ext)s",
+        url
     ]
     proc = await asyncio.create_subprocess_exec(
         *cmd,
         stdout=asyncio.subprocess.PIPE,
-        stderr=asyncio.subprocess.PIPE
+        stderr=asyncio.subprocess.PIPE,
+        cwd=output_dir
     )
-    await proc.communicate()
-    if not os.path.exists(video_path):
-        raise Exception("Video-Download fehlgeschlagen")
-    return video_path
+    stdout, stderr = await proc.communicate()
+    matches = glob.glob(os.path.join(output_dir, "*.mp4"))
+    if not matches:
+        raise Exception(
+            f"Video-Download fehlgeschlagen: {stderr.decode(errors='replace').strip()}"
+        )
+    return matches[0]
 
 
 # ─────────────────────────────────────────────
