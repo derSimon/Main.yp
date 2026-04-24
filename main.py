@@ -109,7 +109,7 @@ async def transcribe_audio(audio_path: str) -> list:
 # ─────────────────────────────────────────────
 async def find_best_moments(segments: list) -> list:
     transcript_text = "\n".join(
-        [f"[{s['start']:.1f}s - {s['end']:.1f}s]: {s['text']}" for s in segments]
+        [f"[{s.start:.1f}s - {s.end:.1f}s]: {s.text}" for s in segments]
     )
     prompt = f"""Du bist ein Experte für virale Kurzvideos (TikTok, Reels, YouTube Shorts).
 
