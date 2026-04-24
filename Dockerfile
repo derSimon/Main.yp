@@ -4,8 +4,9 @@ WORKDIR /app
 
 COPY requirements.txt .
 RUN apt-get update && \
-    apt-get install -y --no-install-recommends ffmpeg deno firefox && \
-    rm -rf /var/lib/apt/lists/*
+    apt-get install -y --no-install-recommends ffmpeg firefox && \
+    rm -rf /var/lib/apt/lists/* && \
+    curl -fsSL https://deno.land/install.sh | sh
 RUN pip install --no-cache-dir -r requirements.txt
 
 COPY . .

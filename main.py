@@ -53,7 +53,7 @@ async def download_audio(url: str, output_dir: str) -> str:
         "--audio-format", "mp3",
         "--audio-quality", "0",
         "--cookies-from-browser", "firefox",
-        "--js-runtimes", "deno:/usr/bin/deno",
+        "--js-runtimes", "deno",
         "-o", "%(title)s.%(ext)s", url
     ]
     proc = await asyncio.create_subprocess_exec(
@@ -78,7 +78,7 @@ async def download_video(url: str, output_dir: str) -> str:
         "-f", "bestvideo[ext=mp4]+bestaudio[ext=m4a]/mp4",
         "--merge-output-format", "mp4",
         "--cookies-from-browser", "firefox",
-        "--js-runtimes", "deno:/usr/bin/deno",
+        "--js-runtimes", "deno",
         "-o", "%(title)s.%(ext)s", url
     ]
     proc = await asyncio.create_subprocess_exec(
