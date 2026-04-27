@@ -52,19 +52,31 @@ async def download_audio(url: str, output_dir: str) -> str:
         "yt-dlp", "-x",
         "--audio-format", "mp3",
         "--audio-quality", "0",
-        "--js-runtimes", "deno",
+        "--extractor-args", "youtube:player_client=web",
+        "--no-playlist",
         "-o", "%(title)s.%(ext)s", url
     ]
+    print(f"[download_audio] Running: {' '.join(cmd)}")
     proc = await asyncio.create_subprocess_exec(
         *cmd,
         stdout=asyncio.subprocess.PIPE,
         stderr=asyncio.subprocess.PIPE,
         cwd=output_dir
     )
-    _, stderr = await proc.communicate()
+    stdout, stderr = await proc.communicate()
+    stdout_text = stdout.decode(errors="replace")
+    stderr_text = stderr.decode(errors="replace")
+    print(f"[download_audio] returncode={proc.returncode}")
+    if stdout_text:
+        print(f"[download_audio] stdout: {stdout_text[:2000]}")
+    if stderr_text:
+        print(f"[download_audio] stderr: {stderr_text[:2000]}")
     matches = glob.glob(os.path.join(output_dir, "*.mp3"))
     if not matches:
-        raise Exception(f"Audio-Download fehlgeschlagen: {stderr.decode(errors='replace')}")
+        raise Exception(
+            f"Audio-Download fehlgeschlagen (returncode={proc.returncode}): {stderr_text}"
+        )
+    print(f"[download_audio] Downloaded: {matches[0]}")
     return matches[0]
 
 
@@ -76,19 +88,31 @@ async def download_video(url: str, output_dir: str) -> str:
         "yt-dlp",
         "-f", "bestvideo[ext=mp4]+bestaudio[ext=m4a]/mp4",
         "--merge-output-format", "mp4",
-        "--js-runtimes", "deno",
+        "--extractor-args", "youtube:player_client=web",
+        "--no-playlist",
         "-o", "%(title)s.%(ext)s", url
     ]
+    print(f"[download_video] Running: {' '.join(cmd)}")
     proc = await asyncio.create_subprocess_exec(
         *cmd,
         stdout=asyncio.subprocess.PIPE,
         stderr=asyncio.subprocess.PIPE,
         cwd=output_dir
     )
-    _, stderr = await proc.communicate()
+    stdout, stderr = await proc.communicate()
+    stdout_text = stdout.decode(errors="replace")
+    stderr_text = stderr.decode(errors="replace")
+    print(f"[download_video] returncode={proc.returncode}")
+    if stdout_text:
+        print(f"[download_video] stdout: {stdout_text[:2000]}")
+    if stderr_text:
+        print(f"[download_video] stderr: {stderr_text[:2000]}")
     matches = glob.glob(os.path.join(output_dir, "*.mp4"))
     if not matches:
-        raise Exception(f"Video-Download fehlgeschlagen: {stderr.decode(errors='replace')}")
+        raise Exception(
+            f"Video-Download fehlgeschlagen (returncode={proc.returncode}): {stderr_text}"
+        )
+    print(f"[download_video] Downloaded: {matches[0]}")
     return matches[0]
 
 
