@@ -48,6 +48,12 @@ def is_valid_youtube_url(url: str) -> bool:
 # SCHRITT 1a: Audio herunterladen
 # ─────────────────────────────────────────────
 async def download_audio(url: str, output_dir: str) -> str:
+    youtube_cookies = os.environ.get("YOUTUBE_COOKIES")
+    if youtube_cookies:
+        with open("/tmp/cookies.txt", "w") as f:
+            f.write(youtube_cookies)
+        print("[download_audio] Cookies written to /tmp/cookies.txt")
+
     cmd = [
         "yt-dlp", "-x",
         "--audio-format", "mp3",
@@ -56,8 +62,10 @@ async def download_audio(url: str, output_dir: str) -> str:
         "--extractor-args", "youtube:skip=hls",
         "--socket-timeout", "30",
         "--no-playlist",
-        "-o", "%(title)s.%(ext)s", url
     ]
+    if youtube_cookies:
+        cmd += ["--cookies", "/tmp/cookies.txt"]
+    cmd += ["-o", "%(title)s.%(ext)s", url]
     print(f"[download_audio] Running: {' '.join(cmd)}")
     proc = await asyncio.create_subprocess_exec(
         *cmd,
@@ -86,6 +94,12 @@ async def download_audio(url: str, output_dir: str) -> str:
 # SCHRITT 1b: Video herunterladen
 # ─────────────────────────────────────────────
 async def download_video(url: str, output_dir: str) -> str:
+    youtube_cookies = os.environ.get("YOUTUBE_COOKIES")
+    if youtube_cookies:
+        with open("/tmp/cookies.txt", "w") as f:
+            f.write(youtube_cookies)
+        print("[download_video] Cookies written to /tmp/cookies.txt")
+
     cmd = [
         "yt-dlp",
         "-f", "bestvideo[ext=mp4]+bestaudio[ext=m4a]/mp4",
@@ -94,8 +108,10 @@ async def download_video(url: str, output_dir: str) -> str:
         "--extractor-args", "youtube:skip=hls",
         "--socket-timeout", "30",
         "--no-playlist",
-        "-o", "%(title)s.%(ext)s", url
     ]
+    if youtube_cookies:
+        cmd += ["--cookies", "/tmp/cookies.txt"]
+    cmd += ["-o", "%(title)s.%(ext)s", url]
     print(f"[download_video] Running: {' '.join(cmd)}")
     proc = await asyncio.create_subprocess_exec(
         *cmd,
