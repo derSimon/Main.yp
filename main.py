@@ -53,6 +53,8 @@ async def download_audio(url: str, output_dir: str) -> str:
         "--audio-format", "mp3",
         "--audio-quality", "0",
         "--extractor-args", "youtube:player_client=web",
+        "--extractor-args", "youtube:skip=hls",
+        "--socket-timeout", "30",
         "--no-playlist",
         "-o", "%(title)s.%(ext)s", url
     ]
@@ -89,6 +91,8 @@ async def download_video(url: str, output_dir: str) -> str:
         "-f", "bestvideo[ext=mp4]+bestaudio[ext=m4a]/mp4",
         "--merge-output-format", "mp4",
         "--extractor-args", "youtube:player_client=web",
+        "--extractor-args", "youtube:skip=hls",
+        "--socket-timeout", "30",
         "--no-playlist",
         "-o", "%(title)s.%(ext)s", url
     ]

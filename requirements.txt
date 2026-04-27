@@ -2,7 +2,7 @@ fastapi
 uvicorn
 python-multipart
 pydantic
-yt-dlp-nightly>=2024.12.01
+yt-dlp>=2024.11.4
 openai
 anthropic
 ffmpeg-python
