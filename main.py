@@ -160,7 +160,7 @@ Antworte NUR mit einem JSON-Array, ohne weitere Erklärungen, ohne Markdown:
     response = await loop.run_in_executor(
         None,
         lambda: claude_client.messages.create(
-            model="claude-3-5-sonnet-20241105",
+            model="claude-sonnet-4-5",
             max_tokens=1000,
             messages=[{"role": "user", "content": prompt}]
         )
