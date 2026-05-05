@@ -8,7 +8,6 @@ import asyncio
 import os
 import json
 import tempfile
-import glob
 import httpx
 
 from openai import AsyncOpenAI
@@ -60,115 +59,98 @@ def extract_video_id(url: str) -> str:
 
 
 # ─────────────────────────────────────────────
-# SCHRITT 1: Video-Info via RapidAPI holen
+# SCHRITT 1: Video-Details + Download-URLs holen
 # ─────────────────────────────────────────────
-async def get_video_info(video_id: str) -> dict:
+async def get_video_details(video_id: str) -> dict:
     headers = {
         "x-rapidapi-key": RAPIDAPI_KEY,
         "x-rapidapi-host": RAPIDAPI_HOST
+    }
+    params = {
+        "videoId": video_id,
+        "urlAccess": "normal",
+        "videos": "auto",
+        "audios": "auto"
     }
     async with httpx.AsyncClient(timeout=30) as client:
         response = await client.get(
             f"https://{RAPIDAPI_HOST}/v2/video/details",
             headers=headers,
-            params={"videoId": video_id}
+            params=params
         )
         data = response.json()
-        print(f"[get_video_info] status={response.status_code}")
+        print(f"[get_video_details] status={response.status_code}")
+        print(f"[get_video_details] keys={list(data.keys())}")
         return data
 
 
 # ─────────────────────────────────────────────
-# SCHRITT 1a: Audio herunterladen via RapidAPI
+# SCHRITT 1a: Audio herunterladen
 # ─────────────────────────────────────────────
-async def download_audio(url: str, output_dir: str) -> str:
-    video_id = extract_video_id(url)
-    headers = {
-        "x-rapidapi-key": RAPIDAPI_KEY,
-        "x-rapidapi-host": RAPIDAPI_HOST
-    }
+async def download_audio(video_details: dict, output_dir: str) -> str:
+    # Audio URL aus den Details extrahieren
+    audio_url = None
+    audios = video_details.get("audios", [])
+    if audios:
+        # Erste verfügbare Audio-URL nehmen
+        for audio in audios:
+            url = audio.get("url")
+            if url:
+                audio_url = url
+                break
 
-    # Audio-Download-URL holen
-    async with httpx.AsyncClient(timeout=30) as client:
-        response = await client.get(
-            f"https://{RAPIDAPI_HOST}/v2/video/download",
-            headers=headers,
-            params={"videoId": video_id, "format": "mp3"}
-        )
-        data = response.json()
-        print(f"[download_audio] API response: {json.dumps(data)[:500]}")
+    if not audio_url:
+        raise Exception(f"Keine Audio-URL in Video-Details gefunden. Keys: {list(video_details.keys())}")
 
-        # Download-URL aus Response extrahieren
-        audio_url = None
-        if "audios" in data and data["audios"]:
-            audio_url = data["audios"][0].get("url")
-        elif "url" in data:
-            audio_url = data["url"]
+    print(f"[download_audio] Downloading from URL...")
+    audio_path = os.path.join(output_dir, "audio.mp3")
 
-        if not audio_url:
-            raise Exception(f"Keine Audio-URL gefunden: {json.dumps(data)[:300]}")
-
-        # Audio-Datei herunterladen
-        audio_path = os.path.join(output_dir, "audio.mp3")
-        async with httpx.AsyncClient(timeout=120, follow_redirects=True) as dl_client:
-            async with dl_client.stream("GET", audio_url) as stream:
-                with open(audio_path, "wb") as f:
-                    async for chunk in stream.aiter_bytes(chunk_size=8192):
-                        f.write(chunk)
+    async with httpx.AsyncClient(timeout=300, follow_redirects=True) as client:
+        async with client.stream("GET", audio_url) as stream:
+            with open(audio_path, "wb") as f:
+                async for chunk in stream.aiter_bytes(chunk_size=8192):
+                    f.write(chunk)
 
     if not os.path.exists(audio_path) or os.path.getsize(audio_path) == 0:
-        raise Exception("Audio-Download fehlgeschlagen – Datei leer oder nicht vorhanden")
+        raise Exception("Audio-Download fehlgeschlagen – Datei leer")
 
-    print(f"[download_audio] Downloaded: {audio_path} ({os.path.getsize(audio_path)} bytes)")
+    print(f"[download_audio] Done: {os.path.getsize(audio_path)} bytes")
     return audio_path
 
 
 # ─────────────────────────────────────────────
-# SCHRITT 1b: Video herunterladen via RapidAPI
+# SCHRITT 1b: Video herunterladen
 # ─────────────────────────────────────────────
-async def download_video(url: str, output_dir: str) -> str:
-    video_id = extract_video_id(url)
-    headers = {
-        "x-rapidapi-key": RAPIDAPI_KEY,
-        "x-rapidapi-host": RAPIDAPI_HOST
-    }
+async def download_video(video_details: dict, output_dir: str) -> str:
+    # Beste Video-URL aus den Details extrahieren
+    video_url = None
+    videos = video_details.get("videos", [])
+    if videos:
+        # Sortiere nach Höhe (Qualität) absteigend
+        sorted_videos = sorted(videos, key=lambda x: x.get("height", 0), reverse=True)
+        for video in sorted_videos:
+            url = video.get("url")
+            if url:
+                video_url = url
+                print(f"[download_video] Selected quality: {video.get('height')}p")
+                break
 
-    # Video-Download-URL holen
-    async with httpx.AsyncClient(timeout=30) as client:
-        response = await client.get(
-            f"https://{RAPIDAPI_HOST}/v2/video/download",
-            headers=headers,
-            params={"videoId": video_id, "format": "mp4"}
-        )
-        data = response.json()
-        print(f"[download_video] API response: {json.dumps(data)[:500]}")
+    if not video_url:
+        raise Exception(f"Keine Video-URL in Video-Details gefunden. Keys: {list(video_details.keys())}")
 
-        # Beste mp4 URL finden (höchste Auflösung)
-        video_url = None
-        if "videos" in data and data["videos"]:
-            # Sortiere nach Höhe/Qualität
-            videos = [v for v in data["videos"] if v.get("extension") == "mp4"]
-            if videos:
-                videos.sort(key=lambda x: x.get("height", 0), reverse=True)
-                video_url = videos[0].get("url")
-        elif "url" in data:
-            video_url = data["url"]
+    print(f"[download_video] Downloading from URL...")
+    video_path = os.path.join(output_dir, "video.mp4")
 
-        if not video_url:
-            raise Exception(f"Keine Video-URL gefunden: {json.dumps(data)[:300]}")
-
-        # Video-Datei herunterladen
-        video_path = os.path.join(output_dir, "video.mp4")
-        async with httpx.AsyncClient(timeout=300, follow_redirects=True) as dl_client:
-            async with dl_client.stream("GET", video_url) as stream:
-                with open(video_path, "wb") as f:
-                    async for chunk in stream.aiter_bytes(chunk_size=8192):
-                        f.write(chunk)
+    async with httpx.AsyncClient(timeout=600, follow_redirects=True) as client:
+        async with client.stream("GET", video_url) as stream:
+            with open(video_path, "wb") as f:
+                async for chunk in stream.aiter_bytes(chunk_size=8192):
+                    f.write(chunk)
 
     if not os.path.exists(video_path) or os.path.getsize(video_path) == 0:
-        raise Exception("Video-Download fehlgeschlagen – Datei leer oder nicht vorhanden")
+        raise Exception("Video-Download fehlgeschlagen – Datei leer")
 
-    print(f"[download_video] Downloaded: {video_path} ({os.path.getsize(video_path)} bytes)")
+    print(f"[download_video] Done: {os.path.getsize(video_path)} bytes")
     return video_path
 
 
@@ -287,9 +269,15 @@ async def process_video(job_id: str, url: str):
         with tempfile.TemporaryDirectory() as tmpdir:
 
             jobs[job_id]["status"] = "downloading"
+            jobs[job_id]["message"] = "⬇️ Video-Details werden geladen..."
+            video_id = extract_video_id(url)
+            video_details = await get_video_details(video_id)
+
+            jobs[job_id]["message"] = "⬇️ Audio wird heruntergeladen..."
+            audio_path = await download_audio(video_details, tmpdir)
+
             jobs[job_id]["message"] = "⬇️ Video wird heruntergeladen..."
-            audio_path = await download_audio(url, tmpdir)
-            video_path = await download_video(url, tmpdir)
+            video_path = await download_video(video_details, tmpdir)
 
             jobs[job_id]["status"] = "transcribing"
             jobs[job_id]["message"] = "🎙️ Audio wird transkribiert (Whisper)..."
