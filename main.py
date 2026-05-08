@@ -89,13 +89,28 @@ async def get_video_details(video_id: str) -> dict:
 # ─────────────────────────────────────────────
 async def download_audio(video_details: dict, output_dir: str) -> str:
     audio_url = None
-    audios = video_details.get("audios", [])
-    print(f"[download_audio] audios type={type(audios)}, count={len(audios)}")
-    if audios:
-        first = audios[0]
-        print(f"[download_audio] first audio type={type(first)}, value={str(first)[:200]}")
+    audios = video_details.get("audios", {})
+    print(f"[download_audio] audios type={type(audios)}, value={str(audios)[:300]}")
+
+    if isinstance(audios, dict):
+        # Dict mit Keys wie "items", "elements" oder direkt URLs
+        items = audios.get("items", audios.get("elements", audios.get("audios", [])))
+        if not items:
+            # Versuche alle Werte des Dicts
+            items = list(audios.values())
+        print(f"[download_audio] items={str(items)[:300]}")
+        for item in items:
+            if isinstance(item, dict):
+                url = item.get("url")
+            elif isinstance(item, str) and item.startswith("http"):
+                url = item
+            else:
+                url = None
+            if url and url.startswith("http"):
+                audio_url = url
+                break
+    elif isinstance(audios, list):
         for audio in audios:
-            # Kann ein Dict oder ein String sein
             if isinstance(audio, dict):
                 url = audio.get("url")
             elif isinstance(audio, str):
@@ -130,12 +145,37 @@ async def download_audio(video_details: dict, output_dir: str) -> str:
 # ─────────────────────────────────────────────
 async def download_video(video_details: dict, output_dir: str) -> str:
     video_url = None
-    videos = video_details.get("videos", [])
-    print(f"[download_video] videos type={type(videos)}, count={len(videos)}")
-    if videos:
-        first = videos[0]
-        print(f"[download_video] first video type={type(first)}, value={str(first)[:200]}")
-        # Versuche nach Qualität zu sortieren wenn möglich
+    videos = video_details.get("videos", {})
+    print(f"[download_video] videos type={type(videos)}, value={str(videos)[:300]}")
+
+    if isinstance(videos, dict):
+        items = videos.get("items", videos.get("elements", videos.get("videos", [])))
+        if not items:
+            items = list(videos.values())
+        print(f"[download_video] items={str(items)[:300]}")
+        try:
+            sorted_items = sorted(
+                items,
+                key=lambda x: x.get("height", 0) if isinstance(x, dict) else 0,
+                reverse=True
+            )
+        except Exception:
+            sorted_items = items
+        for item in sorted_items:
+            if isinstance(item, dict):
+                url = item.get("url")
+                height = item.get("height", "?")
+            elif isinstance(item, str) and item.startswith("http"):
+                url = item
+                height = "?"
+            else:
+                url = None
+                height = "?"
+            if url and url.startswith("http"):
+                video_url = url
+                print(f"[download_video] Selected quality: {height}p")
+                break
+    elif isinstance(videos, list):
         try:
             sorted_videos = sorted(
                 videos,
