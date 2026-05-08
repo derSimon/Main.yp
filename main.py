@@ -336,11 +336,11 @@ async def process_video(job_id: str, url: str):
             video_id = extract_video_id(url)
             video_details = await get_video_details(video_id)
 
-            jobs[job_id]["message"] = "⬇️ Audio wird heruntergeladen..."
-            audio_path = await download_audio(video_details, tmpdir)
-
-            jobs[job_id]["message"] = "⬇️ Video wird heruntergeladen..."
-            video_path = await download_video(video_details, tmpdir)
+            jobs[job_id]["message"] = "⬇️ Audio & Video werden parallel heruntergeladen..."
+            audio_path, video_path = await asyncio.gather(
+                download_audio(video_details, tmpdir),
+                download_video(video_details, tmpdir)
+            )
 
             jobs[job_id]["status"] = "transcribing"
             jobs[job_id]["message"] = "🎙️ Audio wird transkribiert (Whisper)..."
